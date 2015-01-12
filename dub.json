@@ -1,0 +1,8 @@
+{
+	"name": "hmod-dub",
+	"description": "Generates DDoc documentation for any package in the DUB registry",
+	"copyright": "Copyright © 2015, kiith-sa",
+	"authors": ["kiith-sa"],
+	"dependencies": {
+	}
+}
