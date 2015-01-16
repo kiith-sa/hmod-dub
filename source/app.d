@@ -15,7 +15,7 @@ struct Config
     /// Directory where `dub` stores fetched packages.
     string dubDirectory;
     /// Max time in seconds any external process can run. If we run out of time, we give up.
-    uint processTimeLimit = 30;
+    uint processTimeLimit = 60;
     /// Max age (seconds) of documentation before it must be regenerated even if it exists.
     ulong maxDocAge = 3600 * 24 * 7;
     /// Directory to write generated documentation into.
@@ -67,7 +67,7 @@ Options:
                                    external process to run. E.g. if 10, 
                                    hmod-dub gives up if fetching a package 
                                    takes more than 10 seconds.
-                                   Default: 30
+                                   Default: 60
     -a, --max-doc-age SECS         Maximum age of pre-existing documentation.
                                    hmod-dub writes '.time' files storing 
                                    a timestamp specifying when the 
