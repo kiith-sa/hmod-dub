@@ -423,6 +423,7 @@ void startDubFetch(ref PackageState pkg, ref const Config config)
 bool canSkipDubFetch(ref PackageState pkg, ref const Config config)
 {
     const packageDir = config.dubDirectory.buildPath(pkg.packageDirectory);
+    writefln("Checking if %s exists (so we can skip fetching)", packageDir);
     if(packageDir.exists)
     {
         writefln("No need to fetch: '%s' already exists", packageDir);
@@ -595,8 +596,8 @@ string[] getSourceDirs(string packageDir)
     }
     if(sourceDirs.empty)
     {
-        throw new Exception("Found no source directories or maybe dub.json/package.json "
-                            "don't even exist");
+        throw new Exception("Found no source paths (need to add \"sourcePaths\"/\"importPaths\""
+                            "to dub.json?");
     }
     return sourceDirs;
 }
