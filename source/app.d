@@ -423,8 +423,11 @@ int eventLoop(ref const(Config) config)
                 case Ready:
                     if(runningProcesses < config.maxProcesses)
                     {
+                        // If the docs have been generated recently, skip the entire
+                        // generation process.
+                        if(recentDocsExist(pkg, config)) { pkg.finishSuccess(config, Yes.skipped); }
                         // Need to ensure the directory (and log file for process) exists first
-                        if(initDirAndLog(pkg, config)) { startDubFetch(pkg, config); }
+                        else if(initDirAndLog(pkg, config)) { startDubFetch(pkg, config); }
                     }
                     break;
                 case DubFetch:
@@ -574,14 +577,11 @@ bool canSkipDubFetch(ref const PackageState pkg, ref const Config config)
 
 /** Start generating documentation for a package with `hmod`.
  *
- * Will skip generating the documentation if a timestamp file more recent than
- * `config.maxDocAge` is found.
- *
  * Params:
  *
  * pkg    = Package to generate documentation for. **Package stage will be changed
- *          based on whether documentation generation is in progress, has failed to start
- *          or has been skipped.**
+ *          based on whether documentation generation is in progress or has failed to
+ *          start**
  * config = Hmod-dub configuration to get the DUB and output directories.
  *
  * Throws:
@@ -593,8 +593,6 @@ void startHmod(ref PackageState pkg, ref const Config config)
     writefln("\nGenerating documentation for %s:%s", pkg.packageName, pkg.packageVersion);
     try
     {
-        if(canSkipHmod(pkg, config)) { return; }
-
         auto packageDir = config.dubDirectory.buildPath(pkg.packageDirectory);
         writefln("Working directory for hmod: '%s'", packageDir);
 
@@ -638,7 +636,7 @@ void startHmod(ref PackageState pkg, ref const Config config)
  *
  * Returns: `true` if the timestamp file exists and is recent enough, `false` otherwise.
  */
-bool canSkipHmod(ref PackageState pkg, ref const Config config)
+bool recentDocsExist(ref const PackageState pkg, ref const Config config)
 {
     const timestampPath = config.outputDirectory.buildPath(pkg.timestampFile);
     // Check if docs are already generated and recent enough not to regenerate
@@ -648,12 +646,13 @@ bool canSkipHmod(ref PackageState pkg, ref const Config config)
         ulong timestamp;
         timestampFile.readf("%s", &timestamp);
         const age = hnsecs2secs(Clock.currStdTime - timestamp);
-        if(age <= config.maxDocAge)
+        const maxAge = pkg.isBranch ? config.maxDocAgeBranch : config.maxDocAge;
+        if(age <= maxAge)
         {
             const lastDay = age % (3600 * 24);
-            writefln("No need to generate: docs already exist and are %.0fd %.0fh %.2fs old",
+            writefln("\n%s:%s: Recent docs exist, no need to regenerate (%.0fd %.0fh %.2fs)",
+                     pkg.packageName, pkg.packageVersion, 
                      age / (3600 * 24), lastDay / 3600, lastDay % 3600);
-            pkg.finishSuccess(config, Yes.skipped);
             return true;
         }
     }
