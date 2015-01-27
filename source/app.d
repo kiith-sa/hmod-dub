@@ -21,6 +21,8 @@ struct Config
     ulong maxDocAge = 3600 * 24 * 7;
     /// Directory to write generated documentation into.
     string outputDirectory = "./doc";
+    /// Path to write a YAML file with info about status of doc generation to (e.g. errors).
+    string statusOutputPath = null;
     /// Names of packages to generate documentation for, in "package:version" format.
     string[] packageNames;
     /// Maximum number of times to retry fetching a package if we fail to receive data.
@@ -378,6 +380,27 @@ int eventLoop(ref const(Config) config)
 {
     const startTime = Clock.currStdTime;
     PackageState[] packages = processPackageNames(config.packageNames);
+
+    // Don't handle YAMLException, it is caught by the caller as fatal
+    scope(exit) 
+    {
+        if(config.statusOutputPath)
+        {
+            import yaml;
+            Node[string] pkgNodes;
+            foreach(ref pkg; packages)
+            {
+                pkgNodes["%s:%s".format(pkg.packageName,pkg.packageVersion)]
+                    = Node(["errors":          Node(pkg.errors), 
+                            "didGenerateDocs": Node(pkg.didGenerateDocs),
+                            "subprocessLog":   Node(pkg.logContent)]);
+            }
+
+            Dumper(config.statusOutputPath).dump(Node(pkgNodes));
+        }
+        foreach(ref pkg; packages) { pkg.deleteLog(); }
+    }
+
     for(size_t i = 0; packages.canFind!(p => !p.done); ++i)
     {
         // Sleep from time to time so we don't burn cycles waiting too much.
