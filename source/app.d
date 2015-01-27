@@ -180,6 +180,11 @@ struct PackageState
         errorMessage = message;
     }
 
+    /// Reopen the log file if it's closed.
+    void ensureLogOpen()
+    {
+        if(!log.isOpen) { log.open(log.name, "a"); }
+    }
 
     /// Get the content of the log file. Can only be called when not running an external process.
     string logContent()
@@ -192,6 +197,15 @@ struct PackageState
         if(isOpen) { log.close(); }
         scope(exit) if(isOpen) { log.open(log.name, "a"); }
         return readText(log.name);
+    }
+
+    /// Delete the log file.
+    void deleteLog()
+    {
+        if(log == File.init) { return; }
+        const isOpen = log.isOpen;
+        if(isOpen) { log.close(); }
+        std.file.remove(log.name);
     }
 
     /** Finish working with the package after successfully generating documentation.
