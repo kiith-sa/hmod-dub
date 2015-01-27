@@ -23,6 +23,8 @@ struct Config
     string outputDirectory = "./doc";
     /// Names of packages to generate documentation for, in "package:version" format.
     string[] packageNames;
+    /// Maximum number of times to retry fetching a package if we fail to receive data.
+    uint maxFetchRetries = 2;
 
     /// Initialize dubDirectory for current platform.
     void init()
@@ -45,7 +47,7 @@ Usage: hmod-dub [OPTIONS] package1 package2
 
 Examples:
     hmod-dub dyaml:0.5.0 gfm
-        Generate documentation for D:YAML 0.5.0 and the current git (~master) 
+        Generate documentation for D:YAML 0.5.0 and the current git (~master)
         version of GFM. The documentation will be written into the './doc'
         directory.
 
@@ -161,6 +163,9 @@ struct PackageState
     string errorMessage;
     /// Log file to which stdout and stderr of the running external process is redirected.
     std.stdio.File log;
+
+    /// The number of times we've retried to fetch the package.
+    uint fetchRetryCount;
 
     /** Finish working with the package because of an error.
      *
@@ -289,6 +294,55 @@ PackageState[] processPackageNames(const string[] packageNames) nothrow
     return packages;
 }
 
+/** Checks if the current process processing a package is done.
+ *
+ * Can only be called if the package is being processed by an external process.
+ *
+ * Params:
+ *
+ * pkg    = Package being processed.
+ * what   = A string describing what is being done with the package.
+ * config = hmod-dub configuration.
+ * 
+ *
+ *
+ * Returns: true if the currently running process for current package is done, false otherwise.
+ */
+bool successfullyDone(ref PackageState pkg, string what, ref const Config config)
+{
+    auto status = pkg.processID.tryWait;
+    if(!status.terminated)
+    {
+        if(pkg.processAgeSeconds > config.processTimeLimit) with(pkg)
+        {
+        }
+        return false;
+    }
+    // Error return
+    if(status.status != 0) with(pkg)
+    {
+        import std.regex;
+        const log = logContent();
+        enum netError = fetchError ~ `Failure when receiving data from the peer on handle`;
+
+        if(log.canFind(netError))
+        {
+            if(pkg.fetchRetryCount < config.maxFetchRetries)
+            {
+                writeln("Retrying to fetch package ", pkg.packageName);
+                startDubFetch(pkg, config);
+                ++pkg.fetchRetryCount;
+                return false;
+            }
+        }
+        pkg.finishError("Error while %s for package '%s:%s' (use -s to save subprocess logs)"
+                        .format(what, pkg.packageName, pkg.packageVersion));
+        return false;
+    }
+    return true;
+}
+
+
 /** Main event loop. Fetches and generates documentation for packages in external
  * processes limited to `config.maxProcesses`.
  *
@@ -317,27 +371,6 @@ int eventLoop(ref const(Config) config)
 
         foreach(ref pkg; packages)
         {
-            // Returns true if the currently running process for current package is done,
-            // false otherwise.
-            bool successfullyDone(string what)
-            {
-                auto status = pkg.processID.tryWait;
-                if(!status.terminated) 
-                {
-                    if(pkg.processAgeSeconds > config.processTimeLimit)
-                    {
-                        pkg.finishError("Ran out of time while " ~ what);
-                    }
-                    return false; 
-                }
-                if(status.status != 0)
-                {
-                    pkg.finishError("Error while %s, see '%s'".format(what, pkg.log.name));
-                    return false;
-                }
-                return true;
-            }
-
             const runningProcesses = packages.count!(p => p.running);
             final switch(pkg.stage) with(Stage)
             {
@@ -349,14 +382,20 @@ int eventLoop(ref const(Config) config)
                     }
                     break;
                 case DubFetch:
-                    if(!successfullyDone("fetching package")) { break; }
+                    if(!successfullyDone(pkg, "fetching package", config))
+                    {
+                        break;
+                    }
                     pkg.stage = WaitingForHmod;
                     goto case WaitingForHmod;
                 case WaitingForHmod:
                     if(runningProcesses < config.maxProcesses) { startHmod(pkg, config); }
                     break;
                 case Hmod:
-                    if(!successfullyDone("generating documentation")) { break; }
+                    if(!successfullyDone(pkg, "generating documentation", config))
+                    {
+                        break;
+                    }
                     pkg.finishSuccess(config);
                     break;
                 case Success, Error:
