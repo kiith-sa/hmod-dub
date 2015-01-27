@@ -265,6 +265,9 @@ struct PackageState
         return [packageName, packageVersion.tr("+", "_")].buildPath();
     }
 
+    /// Is this a branch version (e.g. ~master)?
+    bool isBranch() const { return packageVersion.startsWith("~"); }
+
     /// Is any external process running for this package at the moment?
     bool running() const { return [Stage.DubFetch, Stage.Hmod].canFind(stage); }
 
