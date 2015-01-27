@@ -19,6 +19,8 @@ struct Config
     uint processTimeLimit = 60;
     /// Max age (seconds) of documentation before it must be regenerated even if it exists.
     ulong maxDocAge = 3600 * 24 * 7;
+    /// Same as maxDocAge, for *branches* (e.g. ~master), not actual releases.
+    ulong maxDocAgeBranch = 3600 * 24 * 2;
     /// Directory to write generated documentation into.
     string outputDirectory = "./doc";
     /// Path to write a YAML file with info about status of doc generation to (e.g. errors).
@@ -554,8 +556,9 @@ void startDubFetch(ref PackageState pkg, ref const Config config)
 
 /** Checks if we can skip fetching a package.
  *
- * Looks for `pkg.packageDirectory` in `config.dubDirectory`. If the directory exists,
- * we can skip generating documentation.
+ * If the package is a branch version, e.g. ~master, we must re-fetch it. 
+ * Otherwise looks for `pkg.packageDirectory` in `config.dubDirectory`. If the directory
+ * exists, we can skip fetching.
  *
  * This is needed because `dub` errors out if trying to re-fetch a package that is already
  * present.
@@ -568,6 +571,13 @@ bool canSkipDubFetch(ref const PackageState pkg, ref const Config config)
     writefln("Checking if %s exists (so we can skip fetching)", packageDir);
     if(packageDir.exists)
     {
+        // We need to re-fetch a branch to get any new commits, and since dub protests
+        // if the branch dir already exists, we need to delete it.
+        if(pkg.isBranch()) 
+        {
+            rmdirRecurse(packageDir);
+            return false;
+        }
         writefln("No need to fetch: '%s' already exists", packageDir);
         return true;
     }
