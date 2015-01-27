@@ -430,6 +430,7 @@ void startDubFetch(ref PackageState pkg, ref const Config config)
 
         auto args = ["dub", "fetch", pkg.packageName, "--version", pkg.packageVersion];
         writeln("Running: ", args.map!(a => "'%s'".format(a)).joiner(" "));
+        pkg.ensureLogOpen();
         pkg.processID = spawnProcess(args, stdin, pkg.log, pkg.log);
         pkg.processStartTime = Clock.currStdTime;
         pkg.stage = Stage.DubFetch;
@@ -499,9 +500,7 @@ void startHmod(ref PackageState pkg, ref const Config config)
         string[] sourceDirs = getSourceDirs(packageDir);
         const outputDir = config.outputDirectory.buildPath(pkg.docDirectory).absolutePath;
 
-        // Ensure the log file is open
-        if(!pkg.log.isOpen) { pkg.log.open(pkg.log.name, "a"); }
-
+        pkg.ensureLogOpen();
         auto args = ["hmod"] ~ sourceDirs ~ ["--output-directory", outputDir];
         writeln("Running: ", args.map!(a => "'%s'".format(a)).joiner(" "));
 
