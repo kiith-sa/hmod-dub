@@ -27,6 +27,8 @@ struct Config
     string[] packageNames;
     /// Maximum number of times to retry fetching a package if we fail to receive data.
     uint maxFetchRetries = 2;
+    /// Links to add to the TOC, in format "name:path", where path points to a local file.
+    string[] additionalTocLinks = [];
 
     /// Initialize dubDirectory for current platform.
     void init()
@@ -601,6 +603,14 @@ void startHmod(ref PackageState pkg, ref const Config config)
 
         pkg.ensureLogOpen();
         auto args = ["hmod"] ~ sourceDirs ~ ["--output-directory", outputDir];
+        foreach(link; config.additionalTocLinks)
+        {
+            const parts = link.findSplit(":");
+            args ~= "--toc-additional-direct";
+            import std.conv: to;
+            const dir = "../".repeat(2 + pkg.packageName.count("/")).join.to!string;
+            args ~= "[%s](%s)".format(parts[0], dir.buildPath(parts[2]));
+        }
         writeln("Running: ", args.map!(a => "'%s'".format(a)).joiner(" "));
 
         pkg.processID = spawnProcess(args, stdin, pkg.log, pkg.log, null,
