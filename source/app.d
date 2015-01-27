@@ -107,7 +107,7 @@ int main(string[] args)
         writeln("Packages: ", config.packageNames.join(", "));
         eventLoop(config);
     }
-    catch(Error e)
+    catch(Throwable e)
     {
         writeln("FATAL ERROR: ", e);
         return 1;
