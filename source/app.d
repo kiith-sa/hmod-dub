@@ -683,7 +683,7 @@ string[] getSourceDirs(string packageDir, string[]* errors)
                 const path = pathJSON.str().buildNormalizedPath;
                 if(!sourceDirs.canFind(path)) { sourceDirs ~= path == "" ? "." : path; }
             }
-            else if(["subPackages"].canFind(key)) foreach(size_t ids, ref subPkg; val)
+            else if(key == "subPackages") foreach(size_t idx, ref subPkg; val)
             {
                 if(subPkg.type == JSON_TYPE.OBJECT) { addPaths(subPkg); }
                 // Subpackages can also be paths pointing to a subpackage.
