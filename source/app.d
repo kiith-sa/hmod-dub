@@ -405,7 +405,11 @@ void startDubFetch(ref PackageState pkg, ref const Config config)
     writefln("\nFetching %s:%s", pkg.packageName, pkg.packageVersion);
     try
     {
-        if(canSkipDubFetch(pkg, config)) { return; }
+        if(canSkipDubFetch(pkg, config)) 
+        {
+            pkg.stage = Stage.WaitingForHmod;
+            return; 
+        }
 
         auto args = ["dub", "fetch", pkg.packageName, "--version", pkg.packageVersion];
         writeln("Running: ", args.map!(a => "'%s'".format(a)).joiner(" "));
@@ -431,19 +435,18 @@ void startDubFetch(ref PackageState pkg, ref const Config config)
  * Looks for `pkg.packageDirectory` in `config.dubDirectory`. If the directory exists,
  * we can skip generating documentation.
  *
- * This is actually needed because `dub` errors out if trying to re-fetch a package that
- * is already present.
+ * This is needed because `dub` errors out if trying to re-fetch a package that is already
+ * present.
  *
  * Returns: `true` if the package is already present, `false` otherwise.
  */
-bool canSkipDubFetch(ref PackageState pkg, ref const Config config)
+bool canSkipDubFetch(ref const PackageState pkg, ref const Config config)
 {
     const packageDir = config.dubDirectory.buildPath(pkg.packageDirectory);
     writefln("Checking if %s exists (so we can skip fetching)", packageDir);
     if(packageDir.exists)
     {
         writefln("No need to fetch: '%s' already exists", packageDir);
-        pkg.stage = Stage.WaitingForHmod;
         return true;
     }
     return false;
