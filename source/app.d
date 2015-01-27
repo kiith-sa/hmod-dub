@@ -167,6 +167,12 @@ struct PackageState
     /// The number of times we've retried to fetch the package.
     uint fetchRetryCount;
 
+    /// Errors that were detected for this package.
+    string[] errors;
+
+    /// True if we've actually generated the docs. False if skipped or failed during generation.
+    bool didGenerateDocs = false;
+
     /** Finish working with the package because of an error.
      *
      * Closes the log file if open and sets `stage` to `stage.Error`.
@@ -178,6 +184,7 @@ struct PackageState
     void finishError(string message)
     {
         if(log.isOpen) { log.close(); }
+        if(errors.empty) { errors ~= "Unknown error"; }
         processID = Pid.init;
         stage = Stage.Error;
         errorMessage = message;
@@ -315,6 +322,10 @@ bool successfullyDone(ref PackageState pkg, string what, ref const Config config
     {
         if(pkg.processAgeSeconds > config.processTimeLimit) with(pkg)
         {
+            if(stage == Stage.DubFetch)  { errors ~= "'dub fetch' ran out of time"; }
+            else if(stage == Stage.Hmod) { errors ~= "'hmod' ran out of time"; }
+            else assert(false, "Checking for termination in unexpected stage");
+            finishError("Ran out of time while " ~ what);
         }
         return false;
     }
@@ -323,6 +334,15 @@ bool successfullyDone(ref PackageState pkg, string what, ref const Config config
     {
         import std.regex;
         const log = logContent();
+        enum fetchError     = "Error executing command fetch: ";
+        enum noPackageError = fetchError ~ "No package";
+        enum jsonError      = fetchError ~ `Got .*? of type \w*? - expected \w?`;
+        enum tmpFileError   = fetchError ~ `Cannot open or create file '/tmp`;
+        if(log.canFind("404"))             { errors ~= "Package file not found"; }
+        if(log.canFind(noPackageError))    { errors ~= "No package with matching name/version"; }
+        if(log.canFind(tmpFileError))      { errors ~= "dub fetch failed to create a /tmp file"; }
+        if(!log.matchAll(jsonError).empty) { errors ~= "Error in dub.json of the package (hit by dub)"; }
+
         enum netError = fetchError ~ `Failure when receiving data from the peer on handle`;
 
         if(log.canFind(netError))
@@ -334,6 +354,7 @@ bool successfullyDone(ref PackageState pkg, string what, ref const Config config
                 ++pkg.fetchRetryCount;
                 return false;
             }
+            errors ~= "Failed when downloading the package";
         }
         pkg.finishError("Error while %s for package '%s:%s' (use -s to save subprocess logs)"
                         .format(what, pkg.packageName, pkg.packageVersion));
@@ -399,6 +420,7 @@ int eventLoop(ref const(Config) config)
                     {
                         break;
                     }
+                    pkg.didGenerateDocs = true;
                     pkg.finishSuccess(config);
                     break;
                 case Success, Error:
@@ -419,6 +441,7 @@ int eventLoop(ref const(Config) config)
         case Stage.Error:
             returnStatus = 2;
             writefln("ERROR:   %s:%s: %s", pkg.packageName, pkg.packageVersion, pkg.errorMessage);
+            writefln("         errors: %s", pkg.errors);
             break;
         default: assert(false, "All processes must be done at this point");
     }
@@ -446,10 +469,12 @@ bool initDirAndLog(ref PackageState pkg, ref const Config config)
         docDir.mkdirRecurse();
         pkg.log = File(docDir ~ ".log", "w");
     }
+    // This is fatal
     catch(Exception e)
     {
-        pkg.finishError("Failed to create output directory and/or log file for package: " ~ e.msg);
-        return false;
+        writefln("Failed to create directory/log for package %s:%s: %s", 
+                 pkg.packageName, pkg.packageVersion, e.msg);
+        throw e;
     }
     return true;
 }
@@ -548,7 +573,7 @@ void startHmod(ref PackageState pkg, ref const Config config)
         auto packageDir = config.dubDirectory.buildPath(pkg.packageDirectory);
         writefln("Working directory for hmod: '%s'", packageDir);
 
-        string[] sourceDirs = getSourceDirs(packageDir);
+        string[] sourceDirs = getSourceDirs(packageDir, &pkg.errors);
         const outputDir = config.outputDirectory.buildPath(pkg.docDirectory).absolutePath;
 
         pkg.ensureLogOpen();
@@ -568,7 +593,8 @@ void startHmod(ref PackageState pkg, ref const Config config)
     }
     catch(Exception e)
     {
-        pkg.finishError("Failed to generate documentation: " ~ e.msg); 
+        // Unknown (or known, in case of 'No source paths') error, but maybe not fatal
+        pkg.finishError("Failed to generate documentation: " ~ e.msg);
     }
 }
 
@@ -620,10 +646,18 @@ bool canSkipHmod(ref PackageState pkg, ref const Config config)
  * recursively called to collect source paths from the subdirectory. All these paths
  * are then collected into the returned array.
  *
+ * Params:
+ *
+ * packageDir = Directory storing the package to document.
+ * errors     = Errors encountered will be written here. 
+ *              May be null (we ignore errors in recursively loaded source dirs).
+ *  
+ * 
+ *
  * Throws: Exception if `dub.json`/`package.json` is not found or there are no
  *         `importPaths`/`sourcePaths` in it.
  */
-string[] getSourceDirs(string packageDir)
+string[] getSourceDirs(string packageDir, string[]* errors)
 {
     string[] sourceDirs;
     // If hmod.cfg exists, assume it specifies the source paths (this allows package
@@ -659,7 +693,9 @@ string[] getSourceDirs(string packageDir)
                     const subPackageDir = packageDir.buildPath(subDirPath);
                     try if(subPackageDir.exists())
                     {
-                        foreach(dir; getSourceDirs(subPackageDir))
+                        // We ignore errors in recursive calls (not ideal, but we can't
+                        // really know which errors are 'fatal' and which are not)
+                        foreach(dir; getSourceDirs(subPackageDir, null))
                         {
                             sourceDirs ~= subDirPath.buildPath(dir);
                         }
@@ -679,15 +715,23 @@ string[] getSourceDirs(string packageDir)
     }
 
 
-    foreach(file; ["dub.json", "package.json"]) if(packageDir.buildPath(file).exists)
+    try foreach(file; ["dub.json", "package.json"]) if(packageDir.buildPath(file).exists)
     {
         auto root = packageDir.buildPath(file).readText.parseJSON;
         addPaths(root);
     }
+    catch(JSONException e)
+    {
+        const msg = "Error in dub.json of the package (hit when looking for source paths)";
+        if(errors !is null) { *errors ~= msg; }
+        writefln("dub.json/package.json in %s: %s", packageDir, e.msg);
+        throw e;
+    }
     if(sourceDirs.empty)
     {
-        throw new Exception("Found no source paths (need to add \"sourcePaths\"/\"importPaths\""
-                            "to dub.json?");
+        const msg = `No source paths found (need to add "sourcePaths"/"importPaths" to dub.json?)`;
+        if(errors !is null) { *errors ~= msg;}
+        throw new Exception(msg);
     }
     return sourceDirs;
 }
