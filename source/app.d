@@ -485,12 +485,12 @@ void startHmod(ref PackageState pkg, ref const Config config)
         auto args = ["hmod"] ~ sourceDirs ~ ["--output-directory", outputDir];
         writeln("Running: ", args.map!(a => "'%s'".format(a)).joiner(" "));
 
-        pkg.processID = spawnProcess(args, stdin, pkg.log, pkg.log, null, 
+        pkg.processID = spawnProcess(args, stdin, pkg.log, pkg.log, null,
                                      std.process.Config.none, packageDir);
         pkg.processStartTime = Clock.currStdTime;
         pkg.stage = Stage.Hmod;
     }
-    catch(ProcessException e) 
+    catch(ProcessException e)
     {
         // This is fatal
         writeln("Failed to start hmod: maybe it's not installed / in PATH?");
@@ -545,8 +545,8 @@ bool canSkipHmod(ref PackageState pkg, ref const Config config)
  * does not override directories from `hmod.cfg`.
  *
  * If `hmod.cfg` is not found, looks for `dub.json` or `package.json` and reads
- * `importPaths` and `sourcePaths`, including those in any `subPackages`. If any of 
- * the `subPackages` is represented as a path to a subdirectory, `getSourceDirs` is 
+ * `importPaths` and `sourcePaths`, including those in any `subPackages`. If any of
+ * the `subPackages` is represented as a path to a subdirectory, `getSourceDirs` is
  * recursively called to collect source paths from the subdirectory. All these paths
  * are then collected into the returned array.
  *
