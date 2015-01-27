@@ -9,7 +9,7 @@ import std.string;
 import std.typecons: Flag, Yes, No;
 
 /// Configuration loaded from command-line args.
-struct Config 
+struct Config
 {
     /// Maximum number of external processes (`dub fetch`, `hmod`) to run simultaneously.
     size_t maxProcesses = 2;
@@ -51,12 +51,12 @@ Examples:
 
 Options:
     -h, --help                     Show this help message.
-    -o, --output-directory DIR     Directory to write generated documentation 
-                                   into. The documentation for each package 
-                                   will be written into subdirectories in 
+    -o, --output-directory DIR     Directory to write generated documentation
+                                   into. The documentation for each package
+                                   will be written into subdirectories in
                                    format DIR/PACKAGE-NAME/PACKAGE-VERSION .
                                    Default: ./doc
-    -p, --process-count COUNT      Maximum number of external processes 
+    -p, --process-count COUNT      Maximum number of external processes
                                    hmod-dub should launch. E.g. if 4, hmod-dub
                                    can fetch or generate documentation for 4
                                    packages at the same time.
@@ -64,14 +64,14 @@ Options:
     -d, --dub-directory DIR        Directory where DUB stores fetched packages.
                                    Default (Linux): ~/.dub
                                    Default (Windows/OSX): TODO
-    -t, --process-time-limit SECS  Maximum time in seconds to allow any 
-                                   external process to run. E.g. if 10, 
-                                   hmod-dub gives up if fetching a package 
+    -t, --process-time-limit SECS  Maximum time in seconds to allow any
+                                   external process to run. E.g. if 10,
+                                   hmod-dub gives up if fetching a package
                                    takes more than 10 seconds.
                                    Default: 60
     -a, --max-doc-age SECS         Maximum age of pre-existing documentation.
-                                   hmod-dub writes '.time' files storing 
-                                   a timestamp specifying when the 
+                                   hmod-dub writes '.time' files storing
+                                   a timestamp specifying when the
                                    documentation
                                    Default: 604800 (7 days)
 -------------------------------------------------------------------------------
@@ -118,7 +118,7 @@ int main(string[] args)
 
 /** Stages of the "package documentation process".
  */
-enum Stage 
+enum Stage
 {
     /// The initial state. Nothing has been done yet with the package.
     Ready,
@@ -284,7 +284,7 @@ void eventLoop(ref const(Config) config)
     for(size_t i = 0; packages.canFind!(p => !p.done); ++i)
     {
         // Sleep from time to time so we don't burn cycles waiting too much.
-        if(i % 100 == 0) 
+        if(i % 100 == 0)
         {
             import core.thread: Thread;
             import std.datetime: dur;
@@ -293,7 +293,7 @@ void eventLoop(ref const(Config) config)
             write(".");
         }
 
-        foreach(ref pkg; packages) 
+        foreach(ref pkg; packages)
         {
             // Returns true if the currently running process for current package is done,
             // false otherwise.
@@ -413,15 +413,16 @@ void startDubFetch(ref PackageState pkg, ref const Config config)
         pkg.processStartTime = Clock.currStdTime;
         pkg.stage = Stage.DubFetch;
     }
-    catch(ProcessException e) 
+    catch(ProcessException e)
     {
         // This is fatal
         writeln("Failed to start dub: maybe it's not installed / in PATH?");
-        throw e; 
+        throw e;
     }
-    catch(Exception e) 
+    catch(Exception e)
     {
-        pkg.finishError("Failed to fetch package: " ~ e.msg); 
+        // Unknown error, but maybe not fatal
+        pkg.finishError("Failed to fetch package: " ~ e.msg);
     }
 }
 
