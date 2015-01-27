@@ -1,8 +1,9 @@
 import std.algorithm;
-import std.array: empty, popFront, front;
+import std.array: empty, popFront, front, back;
 import std.datetime: Clock;
 import std.file;
 import std.path: buildPath, absolutePath, expandTilde, buildNormalizedPath;
+import std.range;
 import std.stdio;
 import std.string;
 import std.typecons: Flag, Yes, No;
