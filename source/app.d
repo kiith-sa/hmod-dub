@@ -179,6 +179,20 @@ struct PackageState
         errorMessage = message;
     }
 
+
+    /// Get the content of the log file. Can only be called when not running an external process.
+    string logContent()
+    {
+        if(log == File.init) { return "<NO LOG CONTENT>"; }
+
+        assert(processID is null || processID.processID < 0,
+               "Trying to read log of a running process");
+        const isOpen = log.isOpen;
+        if(isOpen) { log.close(); }
+        scope(exit) if(isOpen) { log.open(log.name, "a"); }
+        return readText(log.name);
+    }
+
     /** Finish working with the package after successfully generating documentation.
      *
      * Closes the log file if open and sets `stage` to `stage.Success`.
