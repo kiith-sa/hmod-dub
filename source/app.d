@@ -601,6 +601,10 @@ string[] getSourceDirs(string packageDir)
                     }
                 }
             }
+            else if(key == "configurations") foreach(size_t idx, ref config; val)
+            {
+                addPaths(config);
+            }
         }
     }
 
