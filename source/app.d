@@ -105,15 +105,13 @@ int main(string[] args)
     try
     {
         writeln("Packages: ", config.packageNames.join(", "));
-        eventLoop(config);
+        return eventLoop(config);
     }
     catch(Throwable e)
     {
         writeln("FATAL ERROR: ", e);
         return 1;
     }
-
-    return 0;
 }
 
 /** Stages of the "package documentation process".
@@ -275,29 +273,36 @@ struct PackageState
     bool done() const { return [Stage.Success, Stage.Error].canFind(stage); }
 }
 
-/** Main event loop. Fetches and generates documentation for packages in external
- * processes limited to `config.maxProcesses`.
- *
- * Tries to handle errors specific to packages so documentation is still generated for 
- * other packages.
- *
- * Throws:
- *
- * Exception in case of a fatal error that could not be recovered from.
+/** Process package names to generate an array of PackageState structs with package name
+ * and version from each package string.
  */
-void eventLoop(ref const(Config) config)
+PackageState[] processPackageNames(const string[] packageNames) nothrow
 {
-    const startTime = Clock.currStdTime;
-
     PackageState[] packages;
-    foreach(str; config.packageNames)
+    foreach(str; packageNames)
     {
         auto parts = str.findSplit(":");
         string name = parts[0];
         string semver = parts[2].empty ? "~master" : parts[2];
         packages ~= PackageState(Stage.Ready, name, semver);
     }
+    return packages;
+}
 
+/** Main event loop. Fetches and generates documentation for packages in external
+ * processes limited to `config.maxProcesses`.
+ *
+ * Tries to handle errors specific to packages so documentation is still generated for
+ * other packages.
+ *
+ * Throws:
+ *
+ * Exception in case of a fatal error that could not be recovered from.
+ */
+int eventLoop(ref const(Config) config)
+{
+    const startTime = Clock.currStdTime;
+    PackageState[] packages = processPackageNames(config.packageNames);
     for(size_t i = 0; packages.canFind!(p => !p.done); ++i)
     {
         // Sleep from time to time so we don't burn cycles waiting too much.
@@ -362,6 +367,7 @@ void eventLoop(ref const(Config) config)
 
     writefln("\nRun time: %.2fs", hnsecs2secs(Clock.currStdTime - startTime));
 
+    int returnStatus = 0;
     writeln("\nRESULTS:\n");
     foreach(ref pkg; packages) switch(pkg.stage)
     {
@@ -369,10 +375,13 @@ void eventLoop(ref const(Config) config)
             writefln("success: %s:%s", pkg.packageName, pkg.packageVersion);
             break;
         case Stage.Error:
+            returnStatus = 2;
             writefln("ERROR:   %s:%s: %s", pkg.packageName, pkg.packageVersion, pkg.errorMessage);
             break;
         default: assert(false, "All processes must be done at this point");
     }
+
+    return returnStatus;
 }
 
 /** Initialize a documentation output directory and log file.
