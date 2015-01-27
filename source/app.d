@@ -389,7 +389,10 @@ int eventLoop(ref const(Config) config)
                     pkg.stage = WaitingForHmod;
                     goto case WaitingForHmod;
                 case WaitingForHmod:
-                    if(runningProcesses < config.maxProcesses) { startHmod(pkg, config); }
+                    if(runningProcesses < config.maxProcesses) 
+                    {
+                        startHmod(pkg, config); 
+                    }
                     break;
                 case Hmod:
                     if(!successfullyDone(pkg, "generating documentation", config))
