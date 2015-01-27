@@ -82,6 +82,22 @@ Options:
                                    a timestamp specifying when the
                                    documentation
                                    Default: 604800 (7 days)
+    -a, --max-doc-age-branch SECS  Same as maxDocAge, but for branches, not 
+                                   release versions (e.g. ~master).
+                                   Default: 172800 (2 days)
+    -r, --max-fetch-retries TIMES  Maximum number of times to retry fetching
+                                   a package if we failed to receive data.
+                                   Default: 2
+    -s, --status-output-path PATH  Path to write a YAML file with info about 
+                                   documentation generation status (errors, 
+                                   logs, etc.) for individual packages. If not
+                                   specified, this file will not be written.
+    -A, --additional-toc-link STR  Can be used more than once to add links 
+                                   to specified files to the tables of contents 
+                                   of generated documentation. STR is of format 
+                                   "name:path" where path points to the current 
+                                   directory, e.g. "DDocs.org:index.html". Can
+                                   be used more than once to add more links.
 -------------------------------------------------------------------------------
 )";
 
@@ -94,12 +110,16 @@ int main(string[] args)
     config.init();
     bool doHelp;
     getopt(args, std.getopt.config.caseSensitive, std.getopt.config.passThrough,
-           "h|help", &doHelp,
-           "p|process-count", &config.maxProcesses,
-           "d|dub-directory", &config.dubDirectory,
-           "t|process-time-limit", &config.processTimeLimit,
-           "a|max-doc-age", &config.maxDocAge,
-           "o|output-directory", &config.outputDirectory);
+           "h|help",                &doHelp,
+           "p|process-count",       &config.maxProcesses,
+           "d|dub-directory",       &config.dubDirectory,
+           "t|process-time-limit",  &config.processTimeLimit,
+           "a|max-doc-age",         &config.maxDocAge,
+           "b|max-doc-age-branch",  &config.maxDocAgeBranch,
+           "o|output-directory",    &config.outputDirectory,
+           "r|max-fetch-retries",   &config.maxFetchRetries,
+           "s|status-output-path",  &config.statusOutputPath,
+           "A|additional-toc-link", &config.additionalTocLinks);
 
     // Returns the part with args that *don't* start with "-"
     config.packageNames = args[1 .. $];
