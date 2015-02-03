@@ -426,6 +426,14 @@ int eventLoop(ref const(Config) config)
     // Don't handle YAMLException, it is caught by the caller as fatal
     scope(exit) 
     {
+        foreach(ref pkg; packages)
+        {
+            writefln("`hmod` memory usage (%s) (kiB): %s", 
+                     pkg.packageName ~ ":" ~ pkg.packageVersion, pkg.hmodPeakMemoryUsage);
+        }
+        const peakMemory = peakMemoryUsageK();
+        writefln("Peak `hmod-dub` memory usage (kiB): %s", peakMemory);
+
         if(config.statusOutputPath)
         {
             import yaml;
@@ -435,7 +443,9 @@ int eventLoop(ref const(Config) config)
                 pkgNodes["%s:%s".format(pkg.packageName,pkg.packageVersion)]
                     = Node(["errors":          Node(pkg.errors), 
                             "didGenerateDocs": Node(pkg.didGenerateDocs),
-                            "subprocessLog":   Node(pkg.logContent)]);
+                            "subprocessLog":   Node(pkg.logContent),
+                            "memoryHmodK":     Node(pkg.hmodPeakMemoryUsage)
+                           ]);
             }
 
             Dumper(config.statusOutputPath).dump(Node(pkgNodes));
