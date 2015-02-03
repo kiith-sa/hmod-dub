@@ -71,7 +71,7 @@ Options:
                                    packages at the same time.
                                    Default: 2
     -d, --dub-directory DIR        Directory where DUB stores fetched packages.
-                                   Default (Linux): ~/.dub
+                                   Default (Linux): ~/.dub/packages
                                    Default (Windows/OSX): TODO
     -t, --process-time-limit SECS  Maximum time in seconds to allow any
                                    external process to run. E.g. if 10,
