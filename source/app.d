@@ -20,6 +20,8 @@ struct Config
     uint processTimeLimit = 60;
     /// Max age (seconds) of documentation before it must be regenerated even if it exists.
     ulong maxDocAge = 3600 * 24 * 7;
+    /// Hmod will ignore any modules bigger than this many kiB.
+    uint maxFileSizeK = 8192;
     /// Same as maxDocAge, for *branches* (e.g. ~master), not actual releases.
     ulong maxDocAgeBranch = 3600 * 24 * 2;
     /// Directory to write generated documentation into.
@@ -99,6 +101,10 @@ Options:
                                    "name:path" where path points to the current 
                                    directory, e.g. "DDocs.org:index.html". Can
                                    be used more than once to add more links.
+    -m, --max-file-size KILOBYTES  Maximum module file size for `hmod` to 
+                                   accept. Any modules bigger than this will be 
+                                   ignored. Helps avoid huge RAM usage.
+                                   Default: 8192 (8MiB)
 -------------------------------------------------------------------------------
 )";
 
@@ -120,7 +126,8 @@ int main(string[] args)
            "o|output-directory",    &config.outputDirectory,
            "r|max-fetch-retries",   &config.maxFetchRetries,
            "s|status-output-path",  &config.statusOutputPath,
-           "A|additional-toc-link", &config.additionalTocLinks);
+           "A|additional-toc-link", &config.additionalTocLinks,
+           "m|max-file-size",       &config.maxFileSizeK);
 
     // Returns the part with args that *don't* start with "-"
     config.packageNames = args[1 .. $];
@@ -631,7 +638,9 @@ void startHmod(ref PackageState pkg, ref const Config config)
         const outputDir = config.outputDirectory.buildPath(pkg.docDirectory).absolutePath;
 
         pkg.ensureLogOpen();
-        auto args = ["hmod"] ~ sourceDirs ~ ["--output-directory", outputDir];
+        auto args = ["hmod"] ~ sourceDirs ~ 
+                    ["--output-directory", outputDir, 
+                     "--max-file-size", config.maxFileSizeK.to!string];
         foreach(link; config.additionalTocLinks)
         {
             const parts = link.findSplit(":");
