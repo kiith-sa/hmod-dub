@@ -1,5 +1,6 @@
 import std.algorithm;
 import std.array: empty, popFront, front, back;
+import std.conv: to;
 import std.datetime: Clock;
 import std.file;
 import std.path: buildPath, absolutePath, expandTilde, buildNormalizedPath;
@@ -635,7 +636,6 @@ void startHmod(ref PackageState pkg, ref const Config config)
         {
             const parts = link.findSplit(":");
             args ~= "--toc-additional-direct";
-            import std.conv: to;
             const dir = "../".repeat(2 + pkg.packageName.count("/")).join.to!string;
             args ~= "[%s](%s)".format(parts[0], dir.buildPath(parts[2]));
         }
