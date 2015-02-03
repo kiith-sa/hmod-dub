@@ -201,6 +201,9 @@ struct PackageState
     /// The number of times we've retried to fetch the package.
     uint fetchRetryCount;
 
+    /// Peak memory usage of the hmod subprocess, in kiB.
+    ulong hmodPeakMemoryUsage;
+
     /// Errors that were detected for this package.
     string[] errors;
 
@@ -394,6 +397,13 @@ bool successfullyDone(ref PackageState pkg, string what, ref const Config config
                         .format(what, pkg.packageName, pkg.packageVersion));
         return false;
     }
+    // Get hmod memory usage even on success.
+    else if(pkg.stage == Stage.Hmod)
+    {
+        auto memLine = pkg.logContent.splitLines.filter!(l => l.startsWith("Peak memory usage"));
+        if(!memLine.empty) { pkg.hmodPeakMemoryUsage = memLine.front.split.back.to!ulong; }
+    }
+
     return true;
 }
 
