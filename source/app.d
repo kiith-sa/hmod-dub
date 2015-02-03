@@ -798,6 +798,29 @@ string[] getSourceDirs(string packageDir, string[]* errors)
     return sourceDirs;
 }
 
+ulong peakMemoryUsageK()
+{
+    version(linux)
+    {
+        try
+        {
+            import std.exception;
+            auto line = File("/proc/self/status").byLine().filter!(l => l.startsWith("VmHWM"));
+            enforce(!line.empty, new Exception("No VmHWM in /proc/self/status"));
+            return line.front.split()[1].to!ulong;
+        }
+        catch(Exception e)
+        {
+            writeln("Failed to get peak memory usage: ", e);
+            return 0;
+        }
+    }
+    else 
+    {
+        writeln("peakMemoryUsageK not implemented on non-Linux platforms");
+        return 0;
+    }
+}
 
 /// Converts a time in hectonanoseconds to seconds.
 double hnsecs2secs(ulong hnsecs) { return hnsecs / 10_000_000.0; }
