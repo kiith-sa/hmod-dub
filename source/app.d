@@ -659,8 +659,9 @@ void startHmod(ref PackageState pkg, ref const Config config)
 
         pkg.ensureLogOpen();
         auto args = ["hmod"] ~ sourceDirs ~ 
-                    ["--output-directory", outputDir, 
-                     "--max-file-size", config.maxFileSizeK.to!string];
+                    ["--output-directory", outputDir,
+                     "--project-name",     pkg.packageName,
+                     "--max-file-size",    config.maxFileSizeK.to!string];
         foreach(link; config.additionalTocLinks)
         {
             const parts = link.findSplit(":");
