@@ -661,6 +661,7 @@ void startHmod(ref PackageState pkg, ref const Config config)
         auto args = ["hmod"] ~ sourceDirs ~ 
                     ["--output-directory", outputDir,
                      "--project-name",     pkg.packageName,
+                     "--project-version",  pkg.packageVersion,
                      "--max-file-size",    config.maxFileSizeK.to!string];
         foreach(link; config.additionalTocLinks)
         {
