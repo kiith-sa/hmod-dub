@@ -668,7 +668,7 @@ void startHmod(ref PackageState pkg, ref const Config config)
             const parts = link.findSplit(":");
             args ~= "--toc-additional-direct";
             const dir = "../".repeat(2 + pkg.packageName.count("/")).join.to!string;
-            args ~= "[%s](%s)".format(parts[0], dir.buildPath(parts[2]));
+            args ~= `<a href="%s">%s</a>`.format(dir.buildPath(parts[2]), parts[0]);
         }
         writeln("Running: ", args.map!(a => "'%s'".format(a)).joiner(" "));
 
