@@ -1,8 +1,10 @@
 {
     "name": "hmod-dub",
     "description": "Generates DDoc documentation for any package in the DUB registry",
-    "copyright": "Copyright © 2015, kiith-sa",
-    "authors": ["kiith-sa"],
+    "copyright": "Copyright © 2015, Ferdinand Majerech",
+    "authors": ["Ferdinand Majerech"],
+    "license": "Boost 1.0",
+    "homepage": "https://github.com/kiith-sa/hmod-dub",
     "dependencies": {
         "dyaml": ">=0.5.0"
     }
