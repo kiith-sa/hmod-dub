@@ -2,6 +2,10 @@
 hmod-dub
 ========
 
+.. image:: https://raw.githubusercontent.com/kiith-sa/hmod-dub/master/code.dlang.org-shield.png
+   :target: http://code.dlang.org
+
+
 ------------
 Introduction
 ------------
