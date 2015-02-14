@@ -103,8 +103,10 @@ Options:
     -A, --additional-toc-link STR  Can be used more than once to add links 
                                    to specified files to the tables of contents 
                                    of generated documentation. STR is of format 
-                                   "name:path" where path points to the current 
-                                   directory, e.g. "DDocs.org:index.html". Can
+                                   "name:path" where path is relative to the 
+                                   current directory, e.g. 
+                                   "DDocs.org:index.html", or if starting with 
+                                   "http://" or "https://", is absolute. Can
                                    be used more than once to add more links.
     -m, --max-file-size KILOBYTES  Maximum module file size for `hmod` to 
                                    accept. Any modules bigger than this will be 
@@ -671,9 +673,18 @@ void startHmod(ref PackageState pkg, ref const Config config)
         foreach(link; config.additionalTocLinks)
         {
             const parts = link.findSplit(":");
+            const name = parts[0];
+            const path = parts[2];
             args ~= "--toc-additional-direct";
-            const dir = "../".repeat(2 + pkg.packageName.count("/")).join.to!string;
-            args ~= `<a href="%s">%s</a>`.format(dir.buildPath(parts[2]), parts[0]);
+            if(path.startsWith("http://", "https://"))
+            {
+                args ~= `<a href="%s">%s</a>`.format(path, name);
+            }
+            else
+            {
+                const dir = "../".repeat(2 + pkg.packageName.count("/")).join.to!string;
+                args ~= `<a href="%s">%s</a>`.format(dir.buildPath(path), name);
+            }
         }
         writeln("Running: ", args.map!(a => "'%s'".format(a)).joiner(" "));
 
