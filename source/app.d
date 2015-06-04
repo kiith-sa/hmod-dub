@@ -369,6 +369,18 @@ bool successfullyDone(ref PackageState pkg, string what, ref const Config config
             if(stage == Stage.DubFetch)  { errors ~= "'dub fetch' ran out of time"; }
             else if(stage == Stage.Hmod) { errors ~= "'hmod' ran out of time"; }
             else assert(false, "Checking for termination in unexpected stage");
+
+            version(Posix)
+            {
+                import core.sys.posix.signal: SIGKILL;
+                pkg.processID.kill(SIGKILL);
+            }
+            else
+            {
+                pkg.processID.kill();
+            }
+            // kill immediately return; need to wait.
+            pkg.processID.wait();
             finishError("Ran out of time while " ~ what);
         }
         return false;
